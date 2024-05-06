@@ -28,15 +28,29 @@ async function run() {
 
     // start our  code
 
-    // database Collection
+    // database Collection------------------
     const menuCollections = client.db("foody-client-db").collection("menus");
     const cartCollections = client
       .db("foody-client-db")
       .collection("cartsItems");
 
-    // all menus items operations
+    // all menus items operations--------------------
     app.get("/menu", async (req, res) => {
       const result = await menuCollections.find().toArray();
+      res.send(result);
+    });
+    // Curd Operation------------------------------
+    app.post("/carts", async (req, res) => {
+      const cartItems = req.body;
+      const result = await cartCollections.insertOne(cartItems);
+      res.send(result);
+    });
+
+    //get cart using email
+    app.get("/carts", async (req, res) => {
+      const email = req.query.email;
+      const filter = { email: email };
+      const result = cartCollections.find(filter).toArray;
       res.send(result);
     });
 
