@@ -53,6 +53,7 @@ async function run() {
       const result = await cartCollections.find(filter).toArray();
       res.send(result);
     });
+    // cart route section--------------------------------------------start
     // get specific carts
     app.get("/carts/:id", async (req, res) => {
       const id = req.params.id;
@@ -67,6 +68,25 @@ async function run() {
       const result = await cartCollections.deleteOne(filter);
       res.send(result);
     });
+
+    // cart update with quantity
+    app.put("/carts/:id", async (req, res) => {
+      const id = req.params.id;
+      const { quantity } = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: { quantity: parseInt(quantity, 10) },
+      };
+      const result = await cartCollections.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    // cart route section--------------------------------------------end
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
