@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -33,7 +34,7 @@ async function run() {
     const cartCollections = client
       .db("foody-client-db")
       .collection("cartsItems");
-
+    const userCollection = client.db("foody-client-db").collection("users");
     // all menus items operations--------------------
     app.get("/menu", async (req, res) => {
       const result = await menuCollections.find().toArray();
@@ -87,6 +88,90 @@ async function run() {
     });
 
     // cart route section--------------------------------------------end
+    // user route start----------------
+    app.get("/users", async (req, res) => {
+      try {
+        const uses = await userCollection.find({}).toArray();
+        res.status(200).json(uses);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+    // new user create
+    app.post("/users", async (req, res) => {
+      const { name, role, email, photoURL } = req.body;
+      const newUser = { name, role, email, photoURL };
+      const queryEmail = { email: email };
+      try {
+        const existingUser = await userCollection.findOne(queryEmail);
+        if (existingUser) {
+          return res.status(302).json({ message: "User already exists" });
+        }
+        const result = await userCollection.insertOne(newUser);
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+
+    // user delete
+    app.delete("/users/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const paramsId = { _id: new ObjectId(userId) };
+        const result = await userCollection.deleteOne(paramsId);
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json({ message: "User deleted successfully" });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+    // get admin
+    app.get("/users/admin/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const emailQuery = { email: email };
+        const user = await userCollection.findOne(emailQuery);
+        console.log(user);
+        if (email !== req.decoded.email) {
+          return res.status(403).send({ message: "Forbidden access" });
+        }
+        let admin = false;
+        if (user) {
+          admin = user?.role === "admin";
+        }
+        res.status(200).json({ admin });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+
+    // make admin
+    app.patch("/users/admin/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const { name, email, photoURL, role } = req.body;
+        const updateUser = await userCollection.findOne(
+          userId,
+          {
+            $set: { role: "admin" },
+          },
+          { new: true, runValidators: true }
+        );
+
+        if (!updateUser) {
+          return res.status(404).json({ messages: "User not found" });
+        }
+
+        res.status(200).json(updateUser);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+    // user route end----------------
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
