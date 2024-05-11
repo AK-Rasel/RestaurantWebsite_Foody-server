@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -35,6 +36,33 @@ async function run() {
       .db("foody-client-db")
       .collection("cartsItems");
     const userCollection = client.db("foody-client-db").collection("users");
+
+    // JWT-token-Generator ---start
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: 60 * 60,
+      });
+      res.send({ token });
+    });
+    // verify jwt token
+    // middleware
+    const verifyToken = (req, res, next) => {
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      // console.log(token);
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+          return res.status(401).send({ message: "token is invalid" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+    // JWT ---end
+
     // all menus items operations--------------------
     app.get("/menu", async (req, res) => {
       const result = await menuCollections.find().toArray();
@@ -129,12 +157,13 @@ async function run() {
       }
     });
     // get admin
-    app.get("/users/admin/:email", async (req, res) => {
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
       try {
         const email = req.params.email;
         const emailQuery = { email: email };
         const user = await userCollection.findOne(emailQuery);
-        console.log(user);
+        // console.log(user);
+        console.log(req.decoded.email);
         if (email !== req.decoded.email) {
           return res.status(403).send({ message: "Forbidden access" });
         }
