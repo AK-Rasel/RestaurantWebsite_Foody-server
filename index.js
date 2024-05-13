@@ -62,6 +62,17 @@ async function run() {
       });
     };
     // JWT ---end
+    // admin verify
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role == "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access!" });
+      }
+      next();
+    };
 
     // all menus items operations--------------------
     app.get("/menu", async (req, res) => {
@@ -117,7 +128,7 @@ async function run() {
 
     // cart route section--------------------------------------------end
     // user route start----------------
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const uses = await userCollection.find({}).toArray();
         res.status(200).json(uses);
@@ -143,7 +154,7 @@ async function run() {
     });
 
     // user delete
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const userId = req.params.id;
         const paramsId = { _id: new ObjectId(userId) };
@@ -157,48 +168,64 @@ async function run() {
       }
     });
     // get admin
-    app.get("/users/admin/:email", verifyToken, async (req, res) => {
-      try {
-        const email = req.params.email;
-        const emailQuery = { email: email };
-        const user = await userCollection.findOne(emailQuery);
-        // console.log(user);
-        console.log(req.decoded.email);
-        if (email !== req.decoded.email) {
-          return res.status(403).send({ message: "Forbidden access" });
+    app.get(
+      "/users/admin/:email",
+      verifyToken,
+
+      async (req, res) => {
+        try {
+          const email = req.params.email;
+          const emailQuery = { email: email };
+          const user = await userCollection.findOne(emailQuery);
+          // console.log(user);
+          // console.log(email);
+          // console.log(req.decoded.email);
+          if (email !== req.decoded.email) {
+            return res.status(403).send({ message: "Forbidden access" });
+          }
+          let admin = false;
+          if (user) {
+            admin = user?.role === "admin";
+          }
+          res.status(200).json({ admin });
+        } catch (error) {
+          res.status(500).json({ message: error.message });
         }
-        let admin = false;
-        if (user) {
-          admin = user?.role === "admin";
-        }
-        res.status(200).json({ admin });
-      } catch (error) {
-        res.status(500).json({ message: error.message });
       }
-    });
+    );
 
     // make admin
-    app.patch("/users/admin/:id", async (req, res) => {
-      try {
-        const userId = req.params.id;
-        const { name, email, photoURL, role } = req.body;
-        const updateUser = await userCollection.findOne(
-          userId,
-          {
-            $set: { role: "admin" },
-          },
-          { new: true, runValidators: true }
-        );
+    app.patch(
+      "/users/admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const userId = req.params.id;
+          const filter = { _id: new ObjectId(userId) };
+          const option = { upsert: true };
+          console.log(userId);
+          const { role } = req.body;
+          const updateDoc = {
+            $set: {
+              role: "admin",
+            },
+          };
+          const updateUser = await userCollection.updateOne(
+            filter,
+            updateDoc,
+            option
+          );
+          if (!updateUser) {
+            return res.status(404).json({ messages: "User not found" });
+          }
 
-        if (!updateUser) {
-          return res.status(404).json({ messages: "User not found" });
+          res.status(200).json(updateUser);
+        } catch (error) {
+          res.status(500).json({ message: error.message });
         }
-
-        res.status(200).json(updateUser);
-      } catch (error) {
-        res.status(500).json({ message: error.message });
       }
-    });
+    );
     // user route end----------------
 
     await client.db("admin").command({ ping: 1 });
