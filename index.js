@@ -79,6 +79,19 @@ async function run() {
       const result = await menuCollections.find().toArray();
       res.send(result);
     });
+
+    app.post("/menu", async (req, res) => {
+      const newItem = req.body;
+      // Add the current date and time to the newItem object
+      newItem.createdAt = new Date();
+      try {
+        const result = await menuCollections.insertOne(newItem);
+        res.status(200).json(result);
+      } catch (error) {
+        res.status.apply(500).json({ message: error.message });
+      }
+    });
+
     // Curd Operation------------------------------
     app.post("/carts", async (req, res) => {
       const cartItems = req.body;
