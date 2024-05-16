@@ -76,10 +76,28 @@ async function run() {
 
     // all menus items operations--------------------
     app.get("/menu", async (req, res) => {
-      const result = await menuCollections.find().toArray();
+      const result = await menuCollections
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray();
       res.send(result);
     });
+    // specific menu item
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id; // Extract the id from params
+      const filterId = { _id: new ObjectId(id) }; // Create the filter using the ObjectId
 
+      try {
+        const menu = await menuCollections.findOne(filterId);
+        if (menu) {
+          res.status(200).json(menu);
+        } else {
+          res.status(404).json({ message: "Menu item not found" });
+        }
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
     app.post("/menu", async (req, res) => {
       const newItem = req.body;
       // Add the current date and time to the newItem object
@@ -89,6 +107,21 @@ async function run() {
         res.status(200).json(result);
       } catch (error) {
         res.status.apply(500).json({ message: error.message });
+      }
+    });
+
+    app.delete("/menu/:id", async (req, res) => {
+      const id = req.params;
+      const filterId = { _id: new ObjectId(id) };
+      try {
+        const deleteItem = await menuCollections.deleteOne(filterId);
+        if (deleteItem.deletedCount === 1) {
+          res.status(200).json({ message: "deleted successFully" });
+        } else {
+          res.status(404).json({ message: "Item not found" });
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Error deleting document", error });
       }
     });
 
