@@ -109,7 +109,31 @@ async function run() {
         res.status.apply(500).json({ message: error.message });
       }
     });
-
+    app.put("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const menuItem = req.body;
+      const filterId = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          name: menuItem.name,
+          recipe: menuItem.recipe,
+          image: menuItem.image,
+          category: menuItem.category,
+          price: menuItem.price,
+        },
+      };
+      // console.log(updateDoc);
+      try {
+        const result = await menuCollections.updateOne(filterId, updateDoc);
+        // console.log(menuItem);
+        if (result.matchedCount === 0) {
+          return res.status(404).json("Menu not found");
+        }
+        res.send(result);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
     app.delete("/menu/:id", async (req, res) => {
       const id = req.params;
       const filterId = { _id: new ObjectId(id) };
