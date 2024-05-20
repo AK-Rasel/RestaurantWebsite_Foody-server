@@ -2,6 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.SECRET_STRIPE_KEY);
+
+// console.log(process.env.SECRET_STRIPE_KEY);
+
 const jwt = require("jsonwebtoken");
 
 const app = express();
@@ -297,6 +301,28 @@ async function run() {
       }
     );
     // user route end----------------
+    // stripe Payment
+    // Create a PaymentIntent with the order amount and currency
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = Math.round(price * 100);
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        res.status(400).send({
+          error: error.message,
+        });
+      }
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
