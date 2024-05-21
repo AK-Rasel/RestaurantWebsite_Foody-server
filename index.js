@@ -40,6 +40,9 @@ async function run() {
       .db("foody-client-db")
       .collection("cartsItems");
     const userCollection = client.db("foody-client-db").collection("users");
+    const paymentCollection = client
+      .db("foody-client-db")
+      .collection("payment");
 
     // JWT-token-Generator ---start
     app.post("/jwt", (req, res) => {
@@ -300,6 +303,43 @@ async function run() {
         }
       }
     );
+
+    // payment info backend
+    app.post("/payment", verifyToken, async (req, res) => {
+      const paymentInfo = req.body;
+      // Add the current date and time to the newItem object
+      paymentInfo.createdAt = new Date();
+      try {
+        const paymentRequest = await paymentCollection.insertOne(paymentInfo);
+        // delete cart items
+        const cartIds = paymentInfo.cartItem.map((id) => new ObjectId(id));
+        const deleteCartRequest = await cartCollections.deleteMany({
+          _id: { $in: cartIds },
+        });
+        res.status(200).json({ paymentRequest, deleteCartRequest });
+      } catch (error) {
+        res.status.apply(404).json({ message: error.message });
+      }
+    });
+
+    app.get("/payment", verifyToken, async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const decodedEmail = req.decoded.email;
+      try {
+        if (email !== decodedEmail) {
+          res.status(403).json({ message: "Forbidden Access" });
+        }
+        const result = await paymentCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status.apply(404).json({ message: error.message });
+      }
+    });
+
     // user route end----------------
     // stripe Payment
     // Create a PaymentIntent with the order amount and currency
