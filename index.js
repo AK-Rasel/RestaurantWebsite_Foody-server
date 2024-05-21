@@ -281,7 +281,7 @@ async function run() {
           const userId = req.params.id;
           const filter = { _id: new ObjectId(userId) };
           const option = { upsert: true };
-          console.log(userId);
+
           const { role } = req.body;
           const updateDoc = {
             $set: {
@@ -318,7 +318,7 @@ async function run() {
         });
         res.status(200).json({ paymentRequest, deleteCartRequest });
       } catch (error) {
-        res.status.apply(404).json({ message: error.message });
+        res.status.status(404).json({ message: error.message });
       }
     });
 
@@ -336,7 +336,59 @@ async function run() {
           .toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status.apply(404).json({ message: error.message });
+        res.status.status(404).json({ message: error.message });
+      }
+    });
+    app.get("/payment/all", verifyToken, async (req, res) => {
+      try {
+        const payment = await paymentCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.status(200).json(payment);
+      } catch (error) {
+        res.status(404).json({ message: error.message });
+      }
+    });
+    // confirm payment status
+    app.patch("/payment/all/:id", async (req, res) => {
+      const id = req.params.id;
+      const paramsId = { _id: new ObjectId(id) };
+      const { status } = req.body;
+      const option = { upsert: true };
+      const updateDoc = {
+        $set: {
+          status: "confirmed",
+        },
+      };
+      try {
+        const updateStatus = await paymentCollection.updateOne(
+          paramsId,
+          updateDoc,
+          { new: true, runValidators: true },
+          option
+        );
+        if (!updateStatus) {
+          return res.status(404).json({ message: "Payment not found" });
+        }
+        res.status(200).json(updateStatus);
+      } catch (error) {
+        res.status(404).json({ message: error.message });
+      }
+    });
+
+    // booking delete
+    app.delete("/payment/all/:id", async (req, res) => {
+      try {
+        const OrderId = req.params.id;
+        const paramsId = { _id: new ObjectId(OrderId) };
+        const result = await paymentCollection.deleteOne(paramsId);
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ message: "Order not fond" });
+        }
+        res.status(200).json({ message: "Order deleted successfully" });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
       }
     });
 
